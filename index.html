@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>維修所需必備技能</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Noto Sans TC',sans-serif;background:#f7f8fa;min-height:100vh;padding:0 0 48px}
+
+  .sticky-header{
+    position:sticky;top:0;z-index:100;
+    background:#fff;
+    border-left:4px solid #1D9E75;
+    border-bottom:1px solid #e5e7eb;
+    padding:12px 18px;
+    display:flex;align-items:center;gap:12px;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+    cursor:grab;user-select:none;
+  }
+  .sticky-header:active{cursor:grabbing}
+  .hero-name{font-size:17px;font-weight:700;color:#111;flex-shrink:0;white-space:nowrap}
+  .hero-bar-wrap{flex:1;display:flex;align-items:center;gap:8px}
+  .hero-bar-track{flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden}
+  .hero-bar-fill{height:100%;border-radius:3px;background:#1D9E75;transition:width .4s}
+  .hero-pct{font-size:12px;font-weight:600;color:#1D9E75;flex-shrink:0;width:36px;text-align:right;font-variant-numeric:tabular-nums}
+  .drag-hint{font-size:10px;color:#ccc;flex-shrink:0}
+
+  .container{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+
+  .save-status{font-size:11px;color:#bbb;margin-bottom:18px;text-align:right;min-height:16px;transition:color .3s}
+  .save-status.saving{color:#f59e0b}
+  .save-status.saved{color:#1D9E75}
+
+  .category{background:#fff;border-radius:14px;margin-bottom:14px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+
+  /* 類別標題行 */
+  .cat-header{
+    display:flex;align-items:center;gap:12px;
+    margin-bottom:8px;padding:9px 14px;
+    border-radius:8px;border-left:4px solid;background:#f7f8fa;
+  }
+  .cat-name{font-size:17px;font-weight:700;color:#111;flex-shrink:0;white-space:nowrap}
+  .cat-bar-wrap{flex:1;display:flex;align-items:center;gap:8px}
+  .cat-bar-track{flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden}
+  .cat-bar-fill{height:100%;border-radius:3px;transition:width .35s}
+  .cat-pct{font-size:12px;font-weight:600;flex-shrink:0;width:36px;text-align:right;font-variant-numeric:tabular-nums}
+
+  /* 熟練等級圖例（每個類別下方） */
+  .cat-legend{
+    display:flex;flex-wrap:wrap;gap:8px;
+    padding:6px 14px 10px;
+    font-size:10px;color:#aaa;align-items:center;
+  }
+  .legend-item{display:flex;align-items:center;gap:3px}
+  .legend-seg{width:16px;height:10px;border-radius:2px;border:1.5px solid;display:inline-block}
+
+  /* 技能列 */
+  .skills-grid{display:flex;flex-direction:column;gap:8px}
+  .skill-item{display:grid;grid-template-columns:165px 1fr 36px;align-items:center;gap:10px}
+  .skill-name{font-size:13px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .2s}
+  .skill-name.on{color:#111;font-weight:500}
+  .segs{display:flex;gap:4px;align-items:center}
+  .seg{width:34px;height:18px;border-radius:5px;border:1.5px solid #ccc;background:#ececec;cursor:pointer;transition:all .15s;flex-shrink:0}
+  .seg:hover{border-color:#999;background:#d8d8d8;transform:scaleY(1.1)}
+  .skill-pct{font-size:11px;color:#bbb;text-align:right;font-variant-numeric:tabular-nums}
+
+  .footer{margin-top:20px;font-size:11px;color:#aaa;padding:0 4px}
+</style>
+</head>
+<body>
+
+<div class="sticky-header" id="sticky-header">
+  <span class="hero-name">維修所需必備技能</span>
+  <div class="hero-bar-wrap">
+    <div class="hero-bar-track"><div class="hero-bar-fill" id="g-bar" style="width:0%"></div></div>
+    <span class="hero-pct" id="g-pct">0%</span>
+  </div>
+  <span class="drag-hint">⠿ 拖曳</span>
+</div>
+
+<div class="container">
+  <div class="save-status" id="save-status">載入中...</div>
+  <div id="cats"></div>
+  <div class="footer">點擊技能格子調整熟練等級</div>
+</div>
+
+<script>
+// 拖曳
+const hdr = document.getElementById('sticky-header');
+let isDrag=false, startY=0, startTop=0;
+hdr.addEventListener('mousedown', e=>{isDrag=true;startY=e.clientY;startTop=parseInt(hdr.style.top||'0');document.body.style.userSelect='none';});
+document.addEventListener('mousemove', e=>{if(!isDrag)return;hdr.style.top=Math.max(0,startTop+e.clientY-startY)+'px';});
+document.addEventListener('mouseup', ()=>{isDrag=false;document.body.style.userSelect='';});
+hdr.addEventListener('touchstart',e=>{isDrag=true;startY=e.touches[0].clientY;startTop=parseInt(hdr.style.top||'0');},{passive:true});
+document.addEventListener('touchmove',e=>{if(!isDrag)return;hdr.style.top=Math.max(0,startTop+e.touches[0].clientY-startY)+'px';},{passive:true});
+document.addEventListener('touchend',()=>{isDrag=false;});
+
+const LEVELS=[0,25,50,75,100];
+const SEG_COLORS=[
+  {bg:'#ececec',border:'#ccc'},
+  {bg:'#fef3c7',border:'#f59e0b'},
+  {bg:'#bbf7d0',border:'#34d399'},
+  {bg:'#6ee7b7',border:'#059669'},
+  {bg:'#1D9E75',border:'#085041'},
+];
+const LEGEND_ITEMS=[
+  {bg:'#ececec',border:'#ccc',label:'未學習'},
+  {bg:'#fef3c7',border:'#f59e0b',label:'初學 25%'},
+  {bg:'#bbf7d0',border:'#34d399',label:'熟悉 50%'},
+  {bg:'#6ee7b7',border:'#059669',label:'進階 75%'},
+  {bg:'#1D9E75',border:'#085041',label:'精通 100%'},
+];
+
+const cats=[
+  {name:'840C',     weight:0.20,color:'#378ADD',skills:['NCPLCDP備檔','硬碟備檔','資料回灌','判斷資料是否有用','更換硬體','靜態量測','連線step5','修改PLC','查看內部I/O和組態','內部參數修改','查看線路圖','準備料件','判斷問題','廠內測試']},
+  {name:'840D',     weight:0.25,color:'#7F77DD',skills:['NCPLCDP備檔','硬碟備檔','資料回灌','判斷資料是否有用','更換硬體','靜態量測','連線step7','修改PLC','查看內部I/O和組態','內部參數修改','連線startup-tool','查看線路圖','準備料件','判斷問題','廠內測試']},
+  {name:'840D SL',  weight:0.25,color:'#1D9E75',skills:['NCPLCDP備檔','硬碟備檔','資料回灌','判斷資料是否有用','更換硬體','靜態量測','查看線路圖','連線step7','修改PLC','查看內部I/O和組態','內部參數修改','連線startup-tool','SI安全智能開關','準備料件','廠內測試','判斷問題']},
+  {name:'自我提升',  weight:0.15,color:'#BA7517',skills:['SINAMICS課程','SINUMERIK課程','更了解機台架構','電腦資料管理及製作報表','建立英文讀和看的能力']},
+  {name:'與客戶應對',weight:0.15,color:'#D4537E',skills:['了解機台狀況','討論下一步的大致方向','讓客戶了解目前機台狀況','製作當天維修報告']},
+];
+const state={};
+cats.forEach(c=>c.skills.forEach(s=>{state[c.name+'|'+s]=0;}));
+
+const STORAGE_KEY='skill_tracker_v1';
+let saveTimer=null;
+function setStatus(text,cls){const el=document.getElementById('save-status');el.textContent=text;el.className='save-status '+(cls||'');}
+function saveData(){setStatus('儲存中...','saving');try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));setStatus('✓ 已自動儲存','saved');}catch(e){setStatus('⚠️ 儲存失敗','');}}
+function loadData(){try{const raw=localStorage.getItem(STORAGE_KEY);if(raw){const saved=JSON.parse(raw);Object.keys(saved).forEach(k=>{if(k in state&&LEVELS.includes(saved[k]))state[k]=saved[k];});updateAll(false);setStatus('✓ 已載入上次紀錄','saved');}else{setStatus('尚無儲存紀錄','');}}catch(e){setStatus('尚無儲存紀錄','');}}
+function triggerSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveData,800);}
+
+function updateAll(doSave=true){
+  let weighted=0;
+  cats.forEach(cat=>{
+    const keys=cat.skills.map(s=>cat.name+'|'+s);
+    const avg=keys.reduce((sum,k)=>sum+state[k],0)/(keys.length*100);
+    weighted+=avg*cat.weight;
+    const catPct=Math.round(avg*100);
+    const id=cat.name.replace(/\s/g,'_');
+    const fill=document.getElementById('bar-'+id);
+    const pctEl=document.getElementById('catpct-'+id);
+    if(fill)fill.style.width=catPct+'%';
+    if(pctEl)pctEl.textContent=catPct+'%';
+    keys.forEach(k=>{
+      const lvlIdx=LEVELS.indexOf(state[k]);
+      for(let i=1;i<5;i++){
+        const seg=document.getElementById('seg-'+k.replace(/[|/\s]/g,'_')+'-'+i);
+        if(!seg)continue;
+        const col=i<=lvlIdx?SEG_COLORS[lvlIdx]:SEG_COLORS[0];
+        seg.style.background=col.bg;seg.style.borderColor=col.border;
+      }
+      const nameEl=document.getElementById('name-'+k.replace(/[|/\s]/g,'_'));
+      if(nameEl)nameEl.className='skill-name'+(state[k]>0?' on':'');
+      const spctEl=document.getElementById('pct-'+k.replace(/[|/\s]/g,'_'));
+      if(spctEl)spctEl.textContent=state[k]+'%';
+    });
+  });
+  const gPct=Math.round(weighted*100);
+  document.getElementById('g-pct').textContent=gPct+'%';
+  document.getElementById('g-bar').style.width=gPct+'%';
+  if(doSave)triggerSave();
+}
+
+const container=document.getElementById('cats');
+cats.forEach(cat=>{
+  const id=cat.name.replace(/\s/g,'_');
+  const div=document.createElement('div');
+  div.className='category';
+
+  // 圖例 HTML
+  const legendHTML=LEGEND_ITEMS.map(l=>`<span class="legend-item"><span class="legend-seg" style="background:${l.bg};border-color:${l.border}"></span>${l.label}</span>`).join('');
+
+  div.innerHTML=`
+    <div class="cat-header" style="border-left-color:${cat.color}">
+      <span class="cat-name">${cat.name}</span>
+      <div class="cat-bar-wrap">
+        <div class="cat-bar-track">
+          <div class="cat-bar-fill" id="bar-${id}" style="width:0%;background:${cat.color}"></div>
+        </div>
+        <span class="cat-pct" id="catpct-${id}" style="color:${cat.color}">0%</span>
+      </div>
+    </div>
+    <div class="cat-legend">${legendHTML}</div>
+    <div class="skills-grid" id="grid-${id}"></div>
+  `;
+  container.appendChild(div);
+
+  const grid=div.querySelector('.skills-grid');
+  cat.skills.forEach(skill=>{
+    const key=cat.name+'|'+skill;
+    const sk=key.replace(/[|/\s]/g,'_');
+    const row=document.createElement('div');
+    row.className='skill-item';
+    const nameEl=document.createElement('span');
+    nameEl.className='skill-name';nameEl.id='name-'+sk;nameEl.textContent=skill;nameEl.title=skill;
+    row.appendChild(nameEl);
+    const segs=document.createElement('div');
+    segs.className='segs';
+    LEVELS.forEach((lvl,i)=>{
+      if(i===0)return;
+      const seg=document.createElement('div');
+      seg.className='seg';seg.id='seg-'+sk+'-'+i;seg.title=lvl+'%';
+      seg.onclick=()=>{state[key]=state[key]===lvl?0:lvl;updateAll();};
+      segs.appendChild(seg);
+    });
+    row.appendChild(segs);
+    const pctEl=document.createElement('span');
+    pctEl.className='skill-pct';pctEl.id='pct-'+sk;pctEl.textContent='0%';
+    row.appendChild(pctEl);
+    grid.appendChild(row);
+  });
+});
+
+loadData();
+</script>
+</body>
+</html>
